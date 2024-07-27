@@ -11,6 +11,7 @@ import json
 import pymongo
 from pymongo import MongoClient
 import boto3
+import tempfile
 from botocore.exceptions import NoCredentialsError
 from dotenv import load_dotenv
 load_dotenv()
@@ -208,15 +209,24 @@ if st.session_state.authenticated:
         if st.button("Download Selected Files"):
             #if not os.path.exists(r"Downloads"):
             #    os.makedirs(r"Downloads")
+            temp_dir = tempfile.mkdtemp()
             
+
             for file_key in selected_files:
-                download_path = os.path.join(r"Downloads", os.path.basename(file_key))
+                download_path = os.path.join(temp_dir, os.path.basename(file_key))
                 if download_s3_file(bucket_name, file_key, download_path):
-                    st.success(f"Downloaded {file_key} to {download_path}")
+                    for file in os.listdir(temp_dir):
+                        file_path = os.path.join(temp_dir, file)
+                        with open(file_path, 'rb') as f:
+                            st.download_button(
+                                label="Download " + file,
+                                data=f,
+                                file_name=file
+                            )
+                            st.success(f"Downloaded {file_key}")
+                            #st.success(f"Downloaded {file_key} to {file_path}")
                 else:
                     st.error(f"Failed to download {file_key}")
-    else:
-        st.write("No files found in the bucket.")
 
     # Display status of uploaded files
     #st.subheader("Files Available")
