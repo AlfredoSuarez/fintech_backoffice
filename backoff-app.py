@@ -206,8 +206,8 @@ if st.session_state.authenticated:
         selected_files = st.multiselect("Select files to download", files)
 
         if st.button("Download Selected Files"):
-            if not os.path.exists(r"Downloads"):
-                os.makedirs(r"Downloads")
+            #if not os.path.exists(r"Downloads"):
+            #    os.makedirs(r"Downloads")
             
             for file_key in selected_files:
                 download_path = os.path.join(r"Downloads", os.path.basename(file_key))
