@@ -24,6 +24,18 @@ openai.api_key = os.environ.get('openai_key')
 sheet_id=os.environ.get('sheet_id')
 sheet_name= ['LEAD', 'RATIOS','COMPANY DATA', 'FINANCIAL DATA']#"leads"
 url_csv=f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name[3]}"
+
+# Function to process CSV or Excel files
+def process_csv_or_excel(file):
+    df = pd.read_csv(file) if file.name.endswith(".csv") else pd.read_excel(file)
+    return df
+
+# Function to extract text from PDF
+def extract_text_from_pdf(pdf_file):
+    doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
+    text = "\n".join(page.get_text() for page in doc)
+    return text
+    
 # Function to fetch Google Sheet data and convert it to a DataFrame
 def fetch_google_sheet():#(sheet_url):
     csv_url = url_csv #sheet_url.replace('/edit#gid=', '/export?format=csv&gid=')
@@ -174,6 +186,46 @@ if st.session_state.authenticated:
         response_placeholder.write(response)
 
         #st.experimental_rerun()
+    uploaded_file = st.file_uploader("Upload a financial document (CSV, Excel, or PDF)", type=["csv", "xlsx", "pdf"])
+    
+    # Analyze the file if uploaded
+    if uploaded_file:
+        file_type = uploaded_file.name.split(".")[-1]
+
+        if file_type in ["csv", "xlsx"]:
+            df = process_csv_or_excel(uploaded_file)
+            st.write("### Preview of Uploaded Data:")
+            st.dataframe(df.head())
+
+            # Convert DataFrame to a string for OpenAI analysis
+            file_content = df.to_string()
+
+        elif file_type == "pdf":
+            file_content = extract_text_from_pdf(uploaded_file)
+            st.write("### Extracted Text from PDF:")
+            st.text(file_content[:1000])  # Show a preview of extracted text
+
+        else:
+            st.error("Unsupported file type")
+            file_content = ""
+
+        if file_content:
+            # User input for specific analysis
+            user_input = st.text_area("Enter your query for analysis (e.g., 'Summarize key insights')")
+
+            if st.button("Analyze with AI"):
+                with st.spinner("Analyzing..."):
+                    response = openai.chat.completions.create(
+                        model="gpt-4",
+                        messages=[
+                            {"role": "system", "content": url},
+                            {"role": "user", "content": file_content},#[:4000]},  # Limit token size
+                            {"role": "user", "content": user_input}
+                        ]
+                    )
+                    response_text = response.choices[0].message.content
+                    st.write("AI Analysis:")
+                    st.write(response_text)
 
 # Backoffice Section
 if st.session_state.authenticated:
